@@ -7,7 +7,6 @@
 import discord
 import os
 import sys
-import base64
 
 # -------
 # From imports
@@ -17,22 +16,40 @@ from pathlib import Path
 from tinydb import TinyDB, Query
 from discord.ext import commands
 
+import utils
+import config
+
 # -------
 # Configuration of initial components
 # -------
 
-contest_dir = "/data/contest"
-guildid = "1224347680776523847"
+if not os.path.exists(utils.get_app_directory()):
+    print(f'Creating app directory at {utils.get_app_directory()}')
+    os.makedirs(utils.get_app_directory())
+
+config = config.load_config()
+contest_dir = utils.get_contest_directory()
+
 messages = []
-token_src = b""
-token = base64.b64decode(token_src)
 
 # -------
 # Classless functions
 # -------
 
 def app_init():
-    global contestid
+    global contestid, config
+
+    if config.discord_token == "REPLACE_ME" or config.discord_token == "":
+        print("[Config Error] Please replace the discord token in config.json")
+        exit()
+    if config.guild_id == "REPLACE_ME" or config.guild_id == "":
+        print("[Config Error] Please replace the guild id in config.json")
+        exit()
+
+    if not os.path.exists(contest_dir):
+        print(f'Creating contest directory at {contest_dir}')
+        os.makedirs(contest_dir)
+
     contestid = []
     for file in os.listdir(contest_dir):
         if file.endswith(".json"):
@@ -40,7 +57,7 @@ def app_init():
 
 def contest_management(contest_id, insertdata, command):
     global contestid 
-    filepath = '/data/contest/{}.json'.format(contest_id)
+    filepath = utils.get_contest_directory()+'/{}.json'.format(contest_id)
 
     if os.path.exists(filepath):
         contest_list = insertdata
@@ -170,9 +187,9 @@ async def contest(message):
             split_v1 = str(message.attachments).split("filename='")[1]
             filetype = Path(str(split_v1).split("' ")[0]).suffix
             savename = message.author.name + str(message.id) + filetype
-            await message.attachments[0].save(fp="/data/contest/{}".format(savename))
+            await message.attachments[0].save(fp=utils.get_contest_directory()+"/{}".format(savename))
             await message.delete() # Delete the original message to get to reposting
-            file = discord.File("/data/contest/{}".format(savename), filename=savename)
+            file = discord.File(utils.get_contest_directory()+"/{}".format(savename), filename=savename)
             entry_data = {
                 'name': message.author.name,
                 'file': savename,
@@ -194,6 +211,6 @@ async def contest(message):
 # -------
 # Finally run if we are directly executed
 # -------
-8
+
 if __name__ == "__main__":
-    bot.run(token.decode(encoding="utf-8"))
+    bot.run(config.discord_token)
